@@ -68,21 +68,34 @@ class Pool {
             }
         }
 
-        void match() {
-            while (users.size() > 1) {
-                sort(users.begin(), users.end(), [&](User& a, User& b) {
-                        return a.sorce < b.sorce;
-                        });
+        bool check(uint32_t i, uint32_t j) {
+            auto a = users[i], b = users[j];
+            int t = abs(a.sorce - b.sorce);
+            int a_max_diff = WaitTime[i] * 50;
+            int b_max_diff = WaitTime[j] * 50;
+            return t <= a_max_diff && t <= b_max_diff;
+        }
 
+        void match() {
+            for (auto& t: WaitTime) t ++ ;
+
+            while (users.size() > 1) {
                 bool flag = false;
-                for (uint32_t i = 1; i < users.size(); i ++ ) {
-                    auto a = users[i - 1], b = users[i];
-                    if (b.sorce - a.sorce <= 50) {
-                        users.erase(users.begin() + i - 1, users.begin() + i + 1);
-                        save_result(a.id, b.id);
-                        flag = true;
-                        break;
+                for (uint32_t i = 0; i < users.size(); i ++ ) {
+                    for (uint32_t j = i + 1; j < users.size(); j ++ ) {
+                        if (check(i, j)) {
+                            auto a = users[i], b = users[j];
+                            users.erase(users.begin() + j);
+                            users.erase(users.begin() + i);
+                            WaitTime.erase(WaitTime.begin() + j);
+                            WaitTime.erase(WaitTime.begin() + i);
+                            save_result(a.id, b.id);
+                            flag = true;
+                            break;
+                        }
                     }
+
+                    if (flag) break;
                 }
 
                 if (!flag) break;
@@ -91,18 +104,21 @@ class Pool {
 
         void add(User user) {
             users.push_back(user);
+            WaitTime.push_back(0);
         }
 
         void remove(User user) {
             for (uint32_t i = 0; i < users.size(); i ++ )
                 if (users[i].id == user.id){
                     users.erase(users.begin() + i);
+                    WaitTime.erase(WaitTime.begin() + i);
                     break;
                 }
         }
 
     private:
         std::vector<User> users;
+        std::vector<int> WaitTime;
 }pool;
 
 
@@ -153,8 +169,6 @@ void consume_task() {
 
             if (t.type == "add") pool.add(t.user);
             else if (t.type == "remove") pool.remove(t.user);
-
-            pool.match();
         }
     }
 }
